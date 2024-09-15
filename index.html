@@ -43,7 +43,8 @@
             font-size: 18px;
         }
         .chart-container {
-            width: 80%;
+            width: 100%;
+            max-width: 100%;
             margin: auto;
         }
         .gray-button {
@@ -52,6 +53,19 @@
         }
         .filter-buttons {
             margin-top: 20px;
+        }
+        @media (max-width: 600px) {
+            .button {
+                padding: 10px;
+                font-size: 16px;
+            }
+            .back-button {
+                padding: 5px 10px;
+                font-size: 14px;
+            }
+            .selected-info {
+                font-size: 16px;
+            }
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -363,6 +377,8 @@
                 type: 'bar',
                 data: chartData,
                 options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
                         x: {
                             stacked: true,
@@ -377,7 +393,10 @@
                             beginAtZero: true,
                             title: {
                                 display: true,
-                                text: 'Number of Entries'
+                                text: 'Number of Bottles'
+                            },
+                            ticks: {
+                                stepSize: 1 // Ensure the y-axis scale uses whole numbers
                             }
                         }
                     }
