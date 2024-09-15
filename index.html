@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LPG Bottle Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        .button {
+            display: inline-block;
+            margin: 10px;
+            padding: 20px;
+            font-size: 20px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .red { background-color: red; }
+        .blue { background-color: blue; }
+        .black { background-color: black; }
+        .green { background-color: green; }
+        .purple { background-color: purple; }
+        .orange { background-color: orange; }
+        .back-button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            background-color: gray;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .selected-info {
+            margin: 20px 0;
+            font-size: 18px;
+        }
+        .chart-container {
+            width: 80%;
+            margin: auto;
+        }
+        .gray-button {
+            background-color: gray;
+            color: black;
+        }
+        .filter-buttons {
+            margin-top: 20px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="shift-selection">
+        <h1>Select Shift</h1>
+        <button class="button red" onclick="selectShift('Red')">Red</button>
+        <button class="button blue" onclick="selectShift('Blue')">Blue</button>
+        <button class="button black" onclick="selectShift('Black')">Black</button>
+        <button class="button green" onclick="selectShift('Green')">Green</button>
+        <button class="button purple" onclick="selectShift('Purple')">Purple</button>
+        <button class="button orange" onclick="selectShift('Orange')">Orange</button>
+        <button class="gray-button" onclick="showGraph(true)">Show Graph</button>
+    </div>
+
+    <div id="vehicle-selection" style="display: none;">
+        <div class="selected-info" id="selected-shift"></div>
+        <h1>Select Vehicle Number</h1>
+        <div id="vehicle-buttons"></div>
+        <button class="back-button" onclick="goBackToShiftSelection()">Back</button>
+    </div>
+
+    <div id="bottle-selection" style="display: none;">
+        <div class="selected-info" id="selected-vehicle"></div>
+        <h1>Select Bottle Size</h1>
+        <button class="button" id="small-bottle" onclick="selectBottleSize('Small')">Small</button>
+        <button class="button" id="large-bottle" onclick="selectBottleSize('Large')">Large</button>
+        <button class="back-button" onclick="goBackToVehicleSelection()">Back</button>
+    </div>
+
+    <div id="graph-section" style="display: none;">
+        <h1>LPG Usage Graph</h1>
+        <div class="chart-container">
+            <canvas id="lpgChart"></canvas>
+        </div>
+        <div id="filter-buttons" class="filter-buttons">
+            <button class="gray-button" onclick="filterGraph('day')">1 Day</button>
+            <button class="gray-button" onclick="filterGraph('week')">1 Week</button>
+        </div>
+        <button class="back-button gray-button" onclick="goBackToShiftSelection()">Back</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.5.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.5.0/firebase-database-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "", // Leave empty if you don't have a Web API Key
+            authDomain: "relays-c3f46.firebaseapp.com",
+            databaseURL: "https://relays-c3f46-default-rtdb.firebaseio.com",
+            projectId: "relays-c3f46",
+            storageBucket: "relays-c3f46.appspot.com",
+            messagingSenderId: "842934065441",
+            appId: "", // Leave empty if you don't have an App ID
+            measurementId: "" // Leave empty if you don't have a Measurement ID
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+
+        let shiftColor = '';
+        let vehicleNumber = '';
+        let chart;
+
+        function selectShift(color) {
+            shiftColor = color;
+            document.getElementById('shift-selection').style.display = 'none';
+            document.getElementById('vehicle-selection').style.display = 'block';
+            document.getElementById('selected-shift').textContent = `Selected Shift: ${shiftColor}`;
+            const vehicleButtons = document.getElementById('vehicle-buttons');
+            vehicleButtons.innerHTML = ''; // Clear previous buttons
+            const vehicles = ['Linde 58', 'Linde 59', ...Array.from({length: 10}, (_, i) => `Mitsubishi ${i + 1}`)];
+            vehicles.forEach(vehicle => {
+                const button = document.createElement('button');
+                button.className = `button ${shiftColor.toLowerCase()}`;
+                button.textContent = vehicle;
+                button.onclick = () => selectVehicle(vehicle);
+                vehicleButtons.appendChild(button);
+            });
+        }
+
+        function selectVehicle(vehicle) {
+            vehicleNumber = vehicle;
+            document.getElementById('vehicle-selection').style.display = 'none';
+            document.getElementById('bottle-selection').style.display = 'block';
+            document.getElementById('selected-vehicle').textContent = `Selected Shift: ${shiftColor}, Vehicle: ${vehicleNumber}`;
+            document.getElementById('small-bottle').className = `button ${shiftColor.toLowerCase()}`;
+            document.getElementById('large-bottle').className = `button ${shiftColor.toLowerCase()}`;
+        }
+
+        function selectBottleSize(size) {
+            const now = new Date();
+            const nzdtFormatter = new Intl.DateTimeFormat('en-NZ', {
+                timeZone: 'Pacific/Auckland',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+            const nzdtTimestamp = nzdtFormatter.format(now);
+            const uniqueId = Math.random().toString(36).substr(2, 9); // Generate a unique identifier
+
+            const data = {
+                date: nzdtTimestamp.split(', ')[0],
+                time: nzdtTimestamp.split(', ')[1],
+                color: shiftColor,
+                vehicleNumber: vehicleNumber,
+                bottleSize: size,
+                uniqueId: uniqueId
+            };
+
+            console.log('Sending data to Firebase:', data); // Debugging line
+            firebase.database().ref('lpg-usage').push(data)
+                .then(() => {
+                    alert('Data sent to Firebase');
+                    showGraph(true); // Navigate to the graph screen with filter buttons
+                })
+                .catch(error => {
+                    console.error('Error sending data to Firebase:', error); // Error handling
+                    alert('Failed to send data to Firebase');
+                });
+        }
+
+        function goBackToShiftSelection() {
+            document.getElementById('vehicle-selection').style.display = 'none';
+            document.getElementById('bottle-selection').style.display = 'none';
+            document.getElementById('graph-section').style.display = 'none';
+            document.getElementById('shift-selection').style.display = 'block';
+        }
+
+        function goBackToVehicleSelection() {
+            document.getElementById('bottle-selection').style.display = 'none';
+            document.getElementById('vehicle-selection').style.display = 'block';
+        }
+
+        function showGraph(showFilters) {
+            document.getElementById('shift-selection').style.display = 'none';
+            document.getElementById('vehicle-selection').style.display = 'none';
+            document.getElementById('bottle-selection').style.display = 'none';
+            document.getElementById('graph-section').style.display = 'block';
+            document.getElementById('filter-buttons').style.display = showFilters ? 'block' : 'none';
+            loadGraphData('day'); // Default to 1 day view
+        }
+
+        function filterGraph(period) {
+            loadGraphData(period);
+        }
+
+        function loadGraphData(period) {
+            const now = new Date();
+            let startDate;
+            let timeUnit;
+            if (period === 'day') {
+                startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6); // Show last 7 days
+                timeUnit = 'day';
+            } else if (period === 'week') {
+                startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6 * 7); // Show last 7 weeks
+                timeUnit = 'week';
+            }
+
+            firebase.database().ref('lpg-usage').once('value', snapshot => {
+                const data = snapshot.val();
+                const filteredData = [];
+                for (const key in data) {
+                    const entry = data[key];
+                    const date = parseNZDTDate(`${entry.date}, ${entry.time}`);
+                    if (date >= startDate && date <= now) {
+                        filteredData.push({
+                            timestamp: date,
+                            shiftColor: entry.color,
+                            vehicleNumber: entry.vehicleNumber,
+                            bottleSize: entry.bottleSize
+                        });
+                    }
+                }
+                console.log('Filtered Data:', filteredData); // Debugging line
+                updateGraph(filteredData, timeUnit);
+            });
+        }
+
+        function parseNZDTDate(dateString) {
+            if (!dateString) {
+                console.error('Invalid date string:', dateString);
+                return new Date();
+            }
+            if (dateString.includes('T')) {
+                // Handle ISO 8601 format
+                return new Date(dateString);
+            } else {
+                // Handle custom format "dd/MM/yyyy, hh:mm:ss a" or "dd/MM/yyyy"
+                const [datePart, timePart, period] = dateString.split(/, | /);
+                if (!datePart) {
+                    console.error('Invalid date string format:', dateString);
+                    return new Date();
+                }
+                const [day, month, year] = datePart.split('/').map(Number);
+                let hour = 0, minute = 0, second = 0;
+                if (timePart && period) {
+                    [hour, minute, second] = timePart.split(':').map(Number);
+                    if (period === 'pm' && hour !== 12) hour += 12;
+                    if (period === 'am' && hour === 12) hour = 0;
+                }
+                return new Date(year, month - 1, day, hour, minute, second);
+            }
+        }
+
+        function updateGraph(data, timeUnit) {
+            const ctx = document.getElementById('lpgChart').getContext('2d');
+            const labels = [];
+            const datasets = {
+                Red: [],
+                Blue: [],
+                Black: [],
+                Green: [],
+                Purple: [],
+                Orange: []
+            };
+
+            // Generate labels for the last 7 days or weeks
+            const now = new Date();
+            for (let i = 6; i >= 0; i--) {
+                let label;
+                if (timeUnit === 'day') {
+                    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+                    label = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+                } else if (timeUnit === 'week') {
+                    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7);
+                    const weekStart = new Date(date);
+                    weekStart.setDate(date.getDate() - date.getDay()); // Get the start of the week (Sunday)
+                    label = `${weekStart.getFullYear()}-${weekStart.getMonth() + 1}-${weekStart.getDate()}`;
+                }
+                labels.push(label);
+                datasets.Red.push({ x: label, y: 0 });
+                datasets.Blue.push({ x: label, y: 0 });
+                datasets.Black.push({ x: label, y: 0 });
+                datasets.Green.push({ x: label, y: 0 });
+                datasets.Purple.push({ x: label, y: 0 });
+                datasets.Orange.push({ x: label, y: 0 });
+            }
+
+            // Aggregate data based on the time unit and color
+            const aggregatedData = {};
+            data.forEach(item => {
+                const date = item.timestamp;
+                let label;
+                if (timeUnit === 'day') {
+                    label = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+                } else if (timeUnit === 'week') {
+                    const weekStart = new Date(date);
+                    weekStart.setDate(date.getDate() - date.getDay()); // Get the start of the week (Sunday)
+                    label = `${weekStart.getFullYear()}-${weekStart.getMonth() + 1}-${weekStart.getDate()}`;
+                }
+                if (!aggregatedData[label]) {
+                    aggregatedData[label] = { Red: 0, Blue: 0, Black: 0, Green: 0, Purple: 0, Orange: 0 };
+                }
+                aggregatedData[label][item.shiftColor]++;
+            });
+
+            Object.keys(aggregatedData).forEach(label => {
+                Object.keys(datasets).forEach(color => {
+                    const dataset = datasets[color].find(d => d.x === label);
+                    if (dataset) {
+                        dataset.y = aggregatedData[label][color];
+                    }
+                });
+            });
+
+            console.log('Datasets:', datasets); // Debugging line
+
+            const colors = {
+                Red: 'rgba(255, 99, 132, 0.2)',
+                Blue: 'rgba(54, 162, 235, 0.2)',
+                Black: 'rgba(0, 0, 0, 0.2)',
+                Green: 'rgba(75, 192, 192, 0.2)',
+                Purple: 'rgba(153, 102, 255, 0.2)',
+                Orange: 'rgba(255, 159, 64, 0.2)'
+            };
+
+            const borderColors = {
+                Red: 'rgba(255, 99, 132, 1)',
+                Blue: 'rgba(54, 162, 235, 1)',
+                Black: 'rgba(0, 0, 0, 1)',
+                Green: 'rgba(75, 192, 192, 1)',
+                Purple: 'rgba(153, 102, 255, 1)',
+                Orange: 'rgba(255, 159, 64, 1)'
+            };
+
+            const chartData = {
+                labels: labels,
+                datasets: Object.keys(colors).map(color => ({
+                    label: color,
+                    data: datasets[color],
+                    backgroundColor: colors[color],
+                    borderColor: borderColors[color],
+                    borderWidth: 1
+                }))
+            };
+
+            console.log('Chart Data:', chartData); // Debugging line
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    scales: {
+                        x: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: timeUnit === 'day' ? 'Day' : 'Week'
+                            },
+                            reverse: true // Display dates from right to left
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Entries'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
