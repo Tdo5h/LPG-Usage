@@ -5,11 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LPG Bottle Tracker</title>
     <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            margin: 0;
-            padding: 0;
         }
         .button {
             display: inline-block;
@@ -43,9 +46,10 @@
             font-size: 18px;
         }
         .chart-container {
-            width: 100%;
-            max-width: 100%;
-            margin: auto;
+            width: 100vw; /* Full viewport width */
+            height: 70vh; /* 70% of viewport height */
+            margin: 0; /* Remove margin */
+            padding: 0; /* Remove padding */
         }
         .gray-button {
             background-color: gray;
@@ -369,6 +373,11 @@
 
             console.log('Chart Data:', chartData); // Debugging line
 
+            // Calculate the maximum y-value by summing the values for each day and adding 1 to the highest sum
+            const maxYValue = Math.max(...Object.values(aggregatedData).map(dayData => 
+                Object.values(dayData).reduce((sum, value) => sum + value, 0)
+            )) + 1;
+
             if (chart) {
                 chart.destroy();
             }
@@ -391,6 +400,7 @@
                         y: {
                             stacked: true,
                             beginAtZero: true,
+                            max: maxYValue, // Set the max value of y-axis
                             title: {
                                 display: true,
                                 text: 'Number of Bottles'
@@ -398,6 +408,14 @@
                             ticks: {
                                 stepSize: 1 // Ensure the y-axis scale uses whole numbers
                             }
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            left: 0,
+                            right: 0,
+                            top: 0,
+                            bottom: 0
                         }
                     }
                 }
