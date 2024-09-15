@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LPG Bottle Tracker</title>
@@ -23,6 +24,7 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            width: 150px; /* Set a fixed width */
         }
         .red { background-color: red; }
         .blue { background-color: blue; }
@@ -46,14 +48,16 @@
             font-size: 18px;
         }
         .chart-container {
-            width: 100vw; /* Full viewport width */
-            height: 70vh; /* 70% of viewport height */
+            width: 98vw; /* Full viewport width */
+            height: 50vh; /* 70% of viewport height */
             margin: 0; /* Remove margin */
             padding: 0; /* Remove padding */
         }
         .gray-button {
             background-color: gray;
+            border-radius: 10px; /* Add this line to give round corners */
             color: black;
+            width: 150px; /* Ensure the "Show Graph" button is the same width */
         }
         .filter-buttons {
             margin-top: 20px;
@@ -71,18 +75,47 @@
                 font-size: 16px;
             }
         }
+        .button-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .button-container .button {
+            margin: 10px;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" sizes="57x57" href="icons/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="icons/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="icons/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="icons/apple-icon-144x144.png">
+
+    <!-- Android Touch Icon -->
+    <link rel="icon" sizes="192x192" href="icons/android-icon-192x192.png">
+    <link rel="icon" sizes="512x512" href="icons/android-icon-512x512.png">
+
+    <!-- Favicon for other platforms -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="icons/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+
+    <!-- Manifest for Android -->
+    <link rel="manifest" href="manifest.json">
+
 </head>
 <body>
     <div id="shift-selection">
         <h1>Select Shift</h1>
-        <button class="button red" onclick="selectShift('Red')">Red</button>
-        <button class="button blue" onclick="selectShift('Blue')">Blue</button>
-        <button class="button black" onclick="selectShift('Black')">Black</button>
-        <button class="button green" onclick="selectShift('Green')">Green</button>
-        <button class="button purple" onclick="selectShift('Purple')">Purple</button>
-        <button class="button orange" onclick="selectShift('Orange')">Orange</button>
+        <div class="button-container">
+            <button class="button red" onclick="selectShift('Red')">Red</button>
+            <button class="button blue" onclick="selectShift('Blue')">Blue</button>
+            <button class="button black" onclick="selectShift('Black')">Black</button>
+            <button class="button green" onclick="selectShift('Green')">Green</button>
+            <button class="button purple" onclick="selectShift('Purple')">Purple</button>
+            <button class="button orange" onclick="selectShift('Orange')">Orange</button>
+        </div>
         <button class="gray-button" onclick="showGraph(true)">Show Graph</button>
     </div>
 
@@ -160,41 +193,44 @@
             document.getElementById('large-bottle').className = `button ${shiftColor.toLowerCase()}`;
         }
 
-        function selectBottleSize(size) {
-            const now = new Date();
-            const nzdtFormatter = new Intl.DateTimeFormat('en-NZ', {
-                timeZone: 'Pacific/Auckland',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true
-            });
-            const nzdtTimestamp = nzdtFormatter.format(now);
-            const uniqueId = Math.random().toString(36).substr(2, 9); // Generate a unique identifier
+    function selectBottleSize(size) {
+        const now = new Date();
+        const nzdtFormatter = new Intl.DateTimeFormat('en-NZ', {
+            timeZone: 'Pacific/Auckland',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
+        const nzdtTimestamp = nzdtFormatter.format(now);
+        const uniqueId = Math.random().toString(36).substr(2, 9); // Generate a unique identifier
 
-            const data = {
-                date: nzdtTimestamp.split(', ')[0],
-                time: nzdtTimestamp.split(', ')[1],
-                color: shiftColor,
-                vehicleNumber: vehicleNumber,
-                bottleSize: size,
-                uniqueId: uniqueId
-            };
+        const data = {
+            date: nzdtTimestamp.split(', ')[0],
+            time: nzdtTimestamp.split(', ')[1],
+            color: shiftColor,
+            vehicleNumber: vehicleNumber,
+            bottleSize: size,
+            uniqueId: uniqueId
+        };
 
+        if (confirm('Do you want to add this bottle to data? cancel if you want to go back to the start screen')) {
             console.log('Sending data to Firebase:', data); // Debugging line
             firebase.database().ref('lpg-usage').push(data)
                 .then(() => {
-                    alert('Data sent to Firebase');
                     showGraph(true); // Navigate to the graph screen with filter buttons
                 })
                 .catch(error => {
                     console.error('Error sending data to Firebase:', error); // Error handling
                     alert('Failed to send data to Firebase');
                 });
+        } else {
+            goBackToShiftSelection(); // Go back to the start screen if the user cancels
         }
+    }
 
         function goBackToShiftSelection() {
             document.getElementById('vehicle-selection').style.display = 'none';
@@ -279,148 +315,170 @@
             }
         }
 
-        function updateGraph(data, timeUnit) {
-            const ctx = document.getElementById('lpgChart').getContext('2d');
-            const labels = [];
-            const datasets = {
-                Red: [],
-                Blue: [],
-                Black: [],
-                Green: [],
-                Purple: [],
-                Orange: []
-            };
+    function updateGraph(data, timeUnit) {
+        const ctx = document.getElementById('lpgChart').getContext('2d');
+        const labels = [];
+        const datasets = {
+            Red: [],
+            Blue: [],
+            Black: [],
+            Green: [],
+            Purple: [],
+            Orange: []
+        };
 
-            // Generate labels for the last 7 days or weeks
-            const now = new Date();
-            for (let i = 6; i >= 0; i--) {
-                let label;
-                if (timeUnit === 'day') {
-                    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-                    label = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-                } else if (timeUnit === 'week') {
-                    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7);
-                    const weekStart = new Date(date);
-                    weekStart.setDate(date.getDate() - date.getDay()); // Get the start of the week (Sunday)
-                    label = `${weekStart.getFullYear()}-${weekStart.getMonth() + 1}-${weekStart.getDate()}`;
-                }
-                labels.push(label);
-                datasets.Red.push({ x: label, y: 0 });
-                datasets.Blue.push({ x: label, y: 0 });
-                datasets.Black.push({ x: label, y: 0 });
-                datasets.Green.push({ x: label, y: 0 });
-                datasets.Purple.push({ x: label, y: 0 });
-                datasets.Orange.push({ x: label, y: 0 });
+        // Generate labels for the last 7 days or weeks
+        const now = new Date();
+        for (let i = 6; i >= 0; i--) {
+            let label;
+            if (timeUnit === 'day') {
+                const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+                label = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+            } else if (timeUnit === 'week') {
+                const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7);
+                const weekStart = new Date(date);
+                weekStart.setDate(date.getDate() - date.getDay()); // Get the start of the week (Sunday)
+                label = `${weekStart.getFullYear()}-${weekStart.getMonth() + 1}-${weekStart.getDate()}`;
             }
-
-            // Aggregate data based on the time unit and color
-            const aggregatedData = {};
-            data.forEach(item => {
-                const date = item.timestamp;
-                let label;
-                if (timeUnit === 'day') {
-                    label = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-                } else if (timeUnit === 'week') {
-                    const weekStart = new Date(date);
-                    weekStart.setDate(date.getDate() - date.getDay()); // Get the start of the week (Sunday)
-                    label = `${weekStart.getFullYear()}-${weekStart.getMonth() + 1}-${weekStart.getDate()}`;
-                }
-                if (!aggregatedData[label]) {
-                    aggregatedData[label] = { Red: 0, Blue: 0, Black: 0, Green: 0, Purple: 0, Orange: 0 };
-                }
-                aggregatedData[label][item.shiftColor]++;
-            });
-
-            Object.keys(aggregatedData).forEach(label => {
-                Object.keys(datasets).forEach(color => {
-                    const dataset = datasets[color].find(d => d.x === label);
-                    if (dataset) {
-                        dataset.y = aggregatedData[label][color];
-                    }
-                });
-            });
-
-            console.log('Datasets:', datasets); // Debugging line
-
-            const colors = {
-                Red: 'rgba(255, 99, 132, 0.2)',
-                Blue: 'rgba(54, 162, 235, 0.2)',
-                Black: 'rgba(0, 0, 0, 0.2)',
-                Green: 'rgba(75, 192, 192, 0.2)',
-                Purple: 'rgba(153, 102, 255, 0.2)',
-                Orange: 'rgba(255, 159, 64, 0.2)'
-            };
-
-            const borderColors = {
-                Red: 'rgba(255, 99, 132, 1)',
-                Blue: 'rgba(54, 162, 235, 1)',
-                Black: 'rgba(0, 0, 0, 1)',
-                Green: 'rgba(75, 192, 192, 1)',
-                Purple: 'rgba(153, 102, 255, 1)',
-                Orange: 'rgba(255, 159, 64, 1)'
-            };
-
-            const chartData = {
-                labels: labels,
-                datasets: Object.keys(colors).map(color => ({
-                    label: color,
-                    data: datasets[color],
-                    backgroundColor: colors[color],
-                    borderColor: borderColors[color],
-                    borderWidth: 1
-                }))
-            };
-
-            console.log('Chart Data:', chartData); // Debugging line
-
-            // Calculate the maximum y-value by summing the values for each day and adding 1 to the highest sum
-            const maxYValue = Math.max(...Object.values(aggregatedData).map(dayData => 
-                Object.values(dayData).reduce((sum, value) => sum + value, 0)
-            )) + 1;
-
-            if (chart) {
-                chart.destroy();
-            }
-
-            chart = new Chart(ctx, {
-                type: 'bar',
-                data: chartData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            stacked: true,
-                            title: {
-                                display: true,
-                                text: timeUnit === 'day' ? 'Day' : 'Week'
-                            },
-                            reverse: true // Display dates from right to left
-                        },
-                        y: {
-                            stacked: true,
-                            beginAtZero: true,
-                            max: maxYValue, // Set the max value of y-axis
-                            title: {
-                                display: true,
-                                text: 'Number of Bottles'
-                            },
-                            ticks: {
-                                stepSize: 1 // Ensure the y-axis scale uses whole numbers
-                            }
-                        }
-                    },
-                    layout: {
-                        padding: {
-                            left: 0,
-                            right: 0,
-                            top: 0,
-                            bottom: 0
-                        }
-                    }
-                }
-            });
+            labels.push(label);
+            datasets.Red.push({ x: label, y: 0 });
+            datasets.Blue.push({ x: label, y: 0 });
+            datasets.Black.push({ x: label, y: 0 });
+            datasets.Green.push({ x: label, y: 0 });
+            datasets.Purple.push({ x: label, y: 0 });
+            datasets.Orange.push({ x: label, y: 0 });
         }
-    </script>
+
+        // Aggregate data based on the time unit and color
+        const aggregatedData = {};
+        data.forEach(item => {
+            const date = item.timestamp;
+            let label;
+            if (timeUnit === 'day') {
+                label = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+            } else if (timeUnit === 'week') {
+                const weekStart = new Date(date);
+                weekStart.setDate(date.getDate() - date.getDay()); // Get the start of the week (Sunday)
+                label = `${weekStart.getFullYear()}-${weekStart.getMonth() + 1}-${weekStart.getDate()}`;
+            }
+            if (!aggregatedData[label]) {
+                aggregatedData[label] = { Red: 0, Blue: 0, Black: 0, Green: 0, Purple: 0, Orange: 0 };
+            }
+            aggregatedData[label][item.shiftColor]++;
+        });
+
+        Object.keys(aggregatedData).forEach(label => {
+            Object.keys(datasets).forEach(color => {
+                const dataset = datasets[color].find(d => d.x === label);
+                if (dataset) {
+                    dataset.y = aggregatedData[label][color];
+                }
+            });
+        });
+
+        const colors = {
+            Red: 'rgba(255, 99, 132, 0.2)',
+            Blue: 'rgba(54, 162, 235, 0.2)',
+            Black: 'rgba(0, 0, 0, 0.2)',
+            Green: 'rgba(75, 192, 192, 0.2)',
+            Purple: 'rgba(153, 102, 255, 0.2)',
+            Orange: 'rgba(255, 159, 64, 0.2)'
+        };
+
+        const borderColors = {
+            Red: 'rgba(255, 99, 132, 1)',
+            Blue: 'rgba(54, 162, 235, 1)',
+            Black: 'rgba(0, 0, 0, 1)',
+            Green: 'rgba(75, 192, 192, 1)',
+            Purple: 'rgba(153, 102, 255, 1)',
+            Orange: 'rgba(255, 159, 64, 1)'
+        };
+
+        const chartData = {
+            labels: labels,
+            datasets: Object.keys(colors).map(color => ({
+                label: color,
+                data: datasets[color],
+                backgroundColor: colors[color],
+                borderColor: borderColors[color],
+                borderWidth: 1
+            }))
+        };
+
+        const maxYValue = Math.max(...Object.values(aggregatedData).map(dayData => 
+            Object.values(dayData).reduce((sum, value) => sum + value, 0)
+        )) + 1;
+
+        if (chart) {
+            chart.destroy();
+        }
+
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true,
+                        title: {
+                            display: true,
+                            text: timeUnit === 'day' ? 'Day' : 'Week'
+                        },
+                        ticks: {
+                            font: {
+                                size: 14, // Increase font size
+                                weight: 'bold' // Make font bold
+                            }
+                        },
+                        reverse: false // Display dates from right to left
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        max: maxYValue, // Set the max value of y-axis
+                        title: {
+                            display: true,
+                            text: 'Number of Bottles'
+                        },
+                        ticks: {
+                            stepSize: 1, // Ensure the y-axis scale uses whole numbers
+                            font: {
+                                size: 14, // Increase font size
+                                weight: 'bold' // Make font bold
+                            }
+                        },
+                        position: 'left' // Display y-axis on the left side
+                    },
+                    y2: {
+                        stacked: true,
+                        beginAtZero: true,
+                        max: maxYValue, // Set the max value of y-axis
+                        display: true, // Display the second y-axis
+                        ticks: {
+                            stepSize: 1, // Ensure the y-axis scale uses whole numbers
+                            font: {
+                                size: 14, // Increase font size
+                                weight: 'bold' // Make font bold
+                            }
+                        },
+                        position: 'right' // Display y-axis on the right side
+                    }
+                },
+                layout: {
+                    padding: {
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0
+                    }
+                }
+            }
+        });
+    }
+   
+</script>
+
 </body>
 </html>
