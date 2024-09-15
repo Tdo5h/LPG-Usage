@@ -373,10 +373,11 @@
                 aggregatedData[label] = { Red: [], Blue: [], Black: [], Green: [], Purple: [], Orange: [] };
             }
             aggregatedData[label][item.shiftColor].push({
-                vehicle: item.vehicleNumber,
-                bottleSize: item.bottleSize,
-                time: item.time // Add time to the aggregated data
-            });
+    vehicle: item.vehicleNumber,
+    bottleSize: item.bottleSize,
+    time: item.time, // Add time to the aggregated data
+    actualDate: `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}` // Store the actual date
+});
         });
 
         Object.keys(aggregatedData).forEach(label => {
@@ -498,22 +499,25 @@
                     }
                 },
                 onClick: function(event, elements) {
-                    if (elements.length > 0) {
-                        const element = elements[0];
-                        const index = element.index;
-                        const label = chartData.labels[index];
-                        const detailedData = [];
+    if (elements.length > 0) {
+        const element = elements[0];
+        const index = element.index;
+        const label = chartData.labels[index];
+        const detailedData = [];
 
-                        Object.keys(aggregatedData[label]).forEach(color => {
-                            aggregatedData[label][color].forEach(entry => {
-                                detailedData.push(`Date: ${label}, Time: ${entry.time}, Color: ${color}, Vehicle: ${entry.vehicle}, Bottle Size: ${entry.bottleSize}`);
-                            });
-                        });
+        Object.keys(aggregatedData[label]).forEach(color => {
+            aggregatedData[label][color].forEach(entry => {
+                detailedData.push({
+                    displayText: `Date: ${entry.actualDate}, Time: ${entry.time}, Color: ${color}, Vehicle: ${entry.vehicle}, Bottle Size: ${entry.bottleSize}`,
+                    dateTime: new Date(`${entry.actualDate} ${entry.time}`)
+                });
+            });
+        });
 
-                        detailedData.sort((a, b) => new Date(b.split(', ')[1]) - new Date(a.split(', ')[1])); // Sort by time, newest first
-                        document.getElementById('detailed-data').innerHTML = detailedData.join('<br>');
-                    }
-                }
+        detailedData.sort((a, b) => b.dateTime - a.dateTime); // Sort by dateTime, newest first
+        document.getElementById('detailed-data').innerHTML = detailedData.map(entry => entry.displayText).join('<br>');
+    }
+}
             }
         });
     }
