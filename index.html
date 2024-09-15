@@ -49,7 +49,7 @@
         }
         .chart-container {
             width: 98vw; /* Full viewport width */
-            height: 50vh; /* 70% of viewport height */
+            height: 70vh; /* 70% of viewport height */
             margin: 0; /* Remove margin */
             padding: 0; /* Remove padding */
         }
@@ -83,6 +83,10 @@
         .button-container .button {
             margin: 10px;
         }
+        #detailed-data {
+            text-align: left; /* Align text to the left */
+            margin: 20px;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -101,6 +105,10 @@
 
     <!-- Manifest for Android -->
     <link rel="manifest" href="manifest.json">
+
+    <!-- Add this plz -->
+    <link rel="stylesheet" href="styles.css">
+    <script src="scripts.js"></script>
 
 </head>
 <body>
@@ -133,7 +141,7 @@
     </div>
 
     <div id="graph-section" style="display: none;">
-        <h1>LPG Usage Graph</h1>
+        <h1>LPG Usage</h1>
         <div class="chart-container">
             <canvas id="lpgChart"></canvas>
         </div>
@@ -142,6 +150,7 @@
             <button class="gray-button" onclick="filterGraph('week')">1 Week</button>
         </div>
         <button class="back-button gray-button" onclick="goBackToShiftSelection()">Back</button>
+        <div id="detailed-data" style="margin-top: 20px; font-size: 16px;"></div> <!-- Add this line -->
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.5.0/firebase-app-compat.js"></script>
@@ -278,7 +287,8 @@
                             timestamp: date,
                             shiftColor: entry.color,
                             vehicleNumber: entry.vehicleNumber,
-                            bottleSize: entry.bottleSize
+                            bottleSize: entry.bottleSize,
+                            time: entry.time // Add time to the filtered data
                         });
                     }
                 }
@@ -339,12 +349,12 @@
                 label = `${weekStart.getFullYear()}-${weekStart.getMonth() + 1}-${weekStart.getDate()}`;
             }
             labels.push(label);
-            datasets.Red.push({ x: label, y: 0 });
-            datasets.Blue.push({ x: label, y: 0 });
-            datasets.Black.push({ x: label, y: 0 });
-            datasets.Green.push({ x: label, y: 0 });
-            datasets.Purple.push({ x: label, y: 0 });
-            datasets.Orange.push({ x: label, y: 0 });
+            datasets.Red.push({ x: label, y: 0, vehicle: '', bottleSize: '' });
+            datasets.Blue.push({ x: label, y: 0, vehicle: '', bottleSize: '' });
+            datasets.Black.push({ x: label, y: 0, vehicle: '', bottleSize: '' });
+            datasets.Green.push({ x: label, y: 0, vehicle: '', bottleSize: '' });
+            datasets.Purple.push({ x: label, y: 0, vehicle: '', bottleSize: '' });
+            datasets.Orange.push({ x: label, y: 0, vehicle: '', bottleSize: '' });
         }
 
         // Aggregate data based on the time unit and color
@@ -360,16 +370,21 @@
                 label = `${weekStart.getFullYear()}-${weekStart.getMonth() + 1}-${weekStart.getDate()}`;
             }
             if (!aggregatedData[label]) {
-                aggregatedData[label] = { Red: 0, Blue: 0, Black: 0, Green: 0, Purple: 0, Orange: 0 };
+                aggregatedData[label] = { Red: [], Blue: [], Black: [], Green: [], Purple: [], Orange: [] };
             }
-            aggregatedData[label][item.shiftColor]++;
+            aggregatedData[label][item.shiftColor].push({
+                vehicle: item.vehicleNumber,
+                bottleSize: item.bottleSize,
+                time: item.time // Add time to the aggregated data
+            });
         });
 
         Object.keys(aggregatedData).forEach(label => {
             Object.keys(datasets).forEach(color => {
                 const dataset = datasets[color].find(d => d.x === label);
                 if (dataset) {
-                    dataset.y = aggregatedData[label][color];
+                    dataset.y = aggregatedData[label][color].length;
+                    dataset.vehicle = aggregatedData[label][color].map(d => `${d.vehicle} (${d.bottleSize})`).join(', ');
                 }
             });
         });
@@ -404,7 +419,7 @@
         };
 
         const maxYValue = Math.max(...Object.values(aggregatedData).map(dayData => 
-            Object.values(dayData).reduce((sum, value) => sum + value, 0)
+            Object.values(dayData).reduce((sum, value) => sum + value.length, 0)
         )) + 1;
 
         if (chart) {
@@ -471,11 +486,37 @@
                         top: 0,
                         bottom: 0
                     }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const dataset = context.dataset.data[context.dataIndex];
+                                return `${context.dataset.label}: ${dataset.y} (${dataset.vehicle})`;
+                            }
+                        }
+                    }
+                },
+                onClick: function(event, elements) {
+                    if (elements.length > 0) {
+                        const element = elements[0];
+                        const index = element.index;
+                        const label = chartData.labels[index];
+                        const detailedData = [];
+
+                        Object.keys(aggregatedData[label]).forEach(color => {
+                            aggregatedData[label][color].forEach(entry => {
+                                detailedData.push(`Date: ${label}, Time: ${entry.time}, Color: ${color}, Vehicle: ${entry.vehicle}, Bottle Size: ${entry.bottleSize}`);
+                            });
+                        });
+
+                        detailedData.sort((a, b) => new Date(b.split(', ')[1]) - new Date(a.split(', ')[1])); // Sort by time, newest first
+                        document.getElementById('detailed-data').innerHTML = detailedData.join('<br>');
+                    }
                 }
             }
         });
     }
-   
 </script>
 
 </body>
