@@ -1,16 +1,35 @@
 {
-    "name": "LPG Bottle Tracker",
-    "short_name": "LPG Tracker",
-    "icons": [
-        {
-            "src": "icons/android-icon-192x192.png",
-            "sizes": "192x192",
-            "type": "image/png"
-        },
-      
-    ],
-    "start_url": "/index.html",
-    "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#ffffff"
+  "name": "LPG Bottle Tracker",
+  "short_name": "LPG Tracker",
+  "icons": [
+    {
+      "src": "icons/apple-icon-57x57.png",
+      "sizes": "57x57",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/apple-icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/apple-icon-114x114.png",
+      "sizes": "114x114",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/apple-icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/android-icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff"
 }
